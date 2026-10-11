@@ -4,6 +4,12 @@ Aplicação interativa e didática em **Streamlit** desenvolvida para o reposit�
 
 ---
 
+## 🌐 Aplicação Publicada
+
+O projeto está disponível para acesso online em: [healthlifestyle.streamlit.app](https://healthlifestyle.streamlit.app/).
+
+---
+
 ## 👥 Informações Acadêmicas
 - **Instituição:** Faculdade de Tecnologia de Indaiatuba (FATEC Indaiatuba)
 - **Disciplina:** Laboratório de Machine Learning
