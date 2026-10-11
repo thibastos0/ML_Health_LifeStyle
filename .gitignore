@@ -1,6 +1,7 @@
 .venv/
 __pycache__/
-*.py[cod]
-*$py.class
-.ipynb_checkpoints/
-*.pdf
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+input_file_*.png

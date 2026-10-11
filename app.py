@@ -38,34 +38,54 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Estilização CSS customizada para visual limpo e profissional
+# Estilização CSS customizada com compatibilidade total para Dark Mode e Light Mode
 st.markdown(
     """
     <style>
     .main-header {
         font-size: 2.2rem;
         font-weight: 700;
-        color: #1565C0;
+        color: #2563eb;
         margin-bottom: 0.2rem;
     }
     .sub-header {
         font-size: 1.05rem;
-        color: #546E7A;
+        color: var(--text-color);
+        opacity: 0.85;
         margin-bottom: 1.5rem;
     }
     .metric-card {
-        background-color: #F8F9FA;
+        background-color: rgba(128, 128, 128, 0.08);
+        border: 1px solid rgba(128, 128, 128, 0.2);
         border-radius: 8px;
         padding: 15px;
         border-left: 5px solid #1E88E5;
+        color: var(--text-color);
         box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     .banca-card {
-        background-color: #F1F8E9;
-        border-radius: 8px;
-        padding: 14px;
-        border-left: 5px solid #43A047;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        border-left: 5px solid #22c55e;
+        padding: 18px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        color: var(--text-color);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    .banca-title {
+        color: #22c55e;
+        font-size: 1.12rem;
+        font-weight: 700;
         margin-bottom: 10px;
+    }
+    .banca-label {
+        color: #38bdf8;
+        font-weight: 600;
+    }
+    .banca-highlight {
+        color: #eab308;
+        font-weight: 600;
     }
     </style>
     """,
@@ -505,9 +525,9 @@ with st.expander("🎓 Suporte Teórico & Respostas para Arguição da Banca Ava
     st.markdown(
         """
         <div class="banca-card">
-        <b>Pergunta 1: Como o grupo identificou e tratou a Multicolinearidade?</b><br>
-        <i>Fundamentação:</i> A multicolinearidade ocorre quando duas ou mais variáveis preditoras possuem alta correlação linear entre si, inflando a variância dos coeficientes da Regressão Linear e tornando o modelo instável.<br>
-        <i>Evidência Prática no Projeto:</i> O cálculo da Matriz de Correlação de Pearson comprovou que todos os coeficientes cruzados entre variáveis explicativas estão abaixo de <b>|r| < 0.15</b>. Não há dependência linear mútua; logo, todas as 7 features foram retidas sem risco de distorção ou inflação de variância (VIF baixo).
+            <div class="banca-title">❓ Pergunta 1: Como o grupo identificou e tratou a Multicolinearidade?</div>
+            <p><span class="banca-label">🔬 Fundamentação Teórica:</span> A multicolinearidade ocorre quando duas ou mais variáveis preditoras possuem forte correlação linear mútua, inflando a variância dos coeficientes da Regressão Linear e gerando instabilidade nas estimativas.</p>
+            <p><span class="banca-label">📊 Evidência Prática no Projeto:</span> A Matriz de Correlação de Pearson comprovou que todos os coeficientes cruzados entre variáveis explicativas estão contidos na faixa de <span class="banca-highlight">|r| &lt; 0.15</span>. Não há colinearidade prejudicial entre os preditores; portanto, todas as 7 features foram retidas sem risco de distorção ou inflação de variância (baixo VIF).</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -516,9 +536,9 @@ with st.expander("🎓 Suporte Teórico & Respostas para Arguição da Banca Ava
     st.markdown(
         """
         <div class="banca-card">
-        <b>Pergunta 2: Como explicar o Trade-off Viés-Variância (Bias-Variance) e o Overfitting no Random Forest?</b><br>
-        <i>Fundamentação:</i> Modelos complexos tendem a ter baixo viés mas alta variância. No Random Forest, quando as árvores são construídas sem limite de profundidade (<code>max_depth=None</code>), elas dividem os nós até a pureza extrema das folhas, decorando particularidades do conjunto de treino.<br>
-        <i>Evidência Prática no Projeto:</i> O Random Forest obteve <b>R² = 97.10%</b> no treino frente a <b>83.05%</b> no teste (Gap de ~14%), caracterizando memorização parcial. Em contrapartida, a Regressão Linear Múltipla obteve <b>R² = 83.36%</b> no treino e <b>81.62%</b> no teste (Gap < 2%), apresentando excelente estabilidade e capacidade de generalização.
+            <div class="banca-title">❓ Pergunta 2: Como explicar o Trade-off Viés-Variância (Bias-Variance) e o Overfitting no Random Forest?</div>
+            <p><span class="banca-label">🔬 Fundamentação Teórica:</span> Modelos de alta complexidade tendem a exibir baixo viés e alta variância. No Random Forest, quando as árvores são treinadas sem restrição de profundidade (<code>max_depth=None</code>), os nós se ramificam até a pureza total das folhas, decorando os ruídos amostrais do conjunto de treino.</p>
+            <p><span class="banca-label">📊 Evidência Prática no Projeto:</span> O Random Forest atingiu <span class="banca-highlight">R² = 97.10%</span> no treino frente a <span class="banca-highlight">83.05%</span> no teste (Gap de ~14%), caracterizando memorização parcial. Em contraste, a Regressão Linear Múltipla obteve <span class="banca-highlight">R² = 83.36%</span> no treino e <span class="banca-highlight">81.62%</span> no teste (Gap &lt; 2%), comprovando alta capacidade de generalização e estabilidade.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -527,9 +547,9 @@ with st.expander("🎓 Suporte Teórico & Respostas para Arguição da Banca Ava
     st.markdown(
         """
         <div class="banca-card">
-        <b>Pergunta 3: Se vocês tivessem que apresentar os resultados para a diretoria médica de um hospital, como explicariam o MAPE (%) e por que ele é mais intuitivo que o R²?</b><br>
-        <i>Fundamentação:</i> O R² (coeficiente de determinação) é uma medida estatística abstrata que representa a proporção da variância explicada. Stakeholders e gestores de saúde não raciocinam em 'variância explicada'. O <b>MAPE (Mean Absolute Percentage Error)</b> expressa o desvio médio relativo em porcentagem: (|y - ŷ| / y) * 100%.<br>
-        <i>Evidência Prática no Projeto:</i> Nosso melhor modelo alcançou <b>MAPE = 5.52%</b>. Tradução clínica direta: para um paciente com Health Score real de 80 pontos, o modelo erra em média apenas <b>4.4 pontos</b> (precisão prática de <b>94.5%</b>), permitindo triagem segura e confiável.
+            <div class="banca-title">❓ Pergunta 3: Se vocês tivessem que apresentar os resultados para a diretoria médica de um hospital, como explicariam o MAPE (%) e por que ele é mais intuitivo que o R²?</div>
+            <p><span class="banca-label">🔬 Fundamentação Teórica:</span> O R² (coeficiente de determinação) é uma métrica abstrata que expressa proporção de variância explicada, algo de difícil digestão para a diretoria executiva ou médica. O <b>MAPE (Mean Absolute Percentage Error)</b> expressa o desvio relativo médio em porcentagem: (|y - ŷ| / y) * 100%.</p>
+            <p><span class="banca-label">📊 Evidência Prática no Projeto:</span> Nosso modelo atingiu <span class="banca-highlight">MAPE = 5.52%</span>. Na linguagem médica: para um paciente cujo Health Score real é de 80 pontos, o modelo comete um erro médio de apenas <span class="banca-highlight">~4.4 pontos</span> (uma precisão clínica de <span class="banca-highlight">94.5%</span>), ideal para um sistema seguro de triagem e direcionamento de cuidados preventivos.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -538,9 +558,9 @@ with st.expander("🎓 Suporte Teórico & Respostas para Arguição da Banca Ava
     st.markdown(
         """
         <div class="banca-card">
-        <b>Pergunta 4: Para colocar em produção com milhares de requisições por segundo (baixa latência), qual modelo escolher e por quê? (Navalha de Ockham)</b><br>
-        <i>Fundamentação:</i> O Princípio da Parsimônia estabelece que, perante desempenhos preditivos semelhantes, a solução de menor complexidade deve ser adotada. Na inferência, a Regressão Linear Múltipla executa um produto escalar vetorial simples <code>O(p)</code> em microssegundos, enquanto o Random Forest precisa percorrer 100 árvores de decisão individuais <code>O(M * profundidade)</code>.<br>
-        <i>Evidência Prática no Projeto:</i> A Regressão Linear Múltipla treinou e inferiu em apenas <b>0.0021s</b> (cerca de <b>200 vezes mais rápida</b> que o Random Forest, que levou 0.42s), com uma perda insignificante de R² (81.62% vs 83.05%). Portanto, a <b>Regressão Linear Múltipla é a escolha ideal para produção de alta escala</b>.
+            <div class="banca-title">❓ Pergunta 4: Para colocar em produção com milhares de requisições por segundo (baixa latência), qual modelo escolher e por quê? (Navalha de Ockham)</div>
+            <p><span class="banca-label">🔬 Fundamentação Teórica:</span> O Princípio da Parsimônia estabelece que, diante de performances similares, o modelo mais simples deve ser adotado. Em produção de alta volumetria, a Regressão Linear Múltipla calcula a inferência via produto escalar <code>O(p)</code> em microssegundos com consumo ínfimo de CPU/RAM, enquanto o Random Forest precisa percorrer 100 árvores de decisão individuais <code>O(M * profundidade)</code>.</p>
+            <p><span class="banca-label">📊 Evidência Prática no Projeto:</span> A Regressão Linear Múltipla treinou e inferiu em apenas <span class="banca-highlight">0.0021s</span> (<span class="banca-highlight">~200 vezes mais rápida</span> que o Random Forest a 0.42s), com diferença de apenas 1.4% no R² (81.62% vs 83.05%). Além do ganho de latência, a Regressão Linear oferece explicabilidade médica total através dos seus coeficientes β.</p>
         </div>
         """,
         unsafe_allow_html=True,

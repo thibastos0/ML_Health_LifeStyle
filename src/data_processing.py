@@ -5,6 +5,7 @@ FATEC Indaiatuba - Prof. Medina
 Autores: Gustavo Bravo, Gustavo Martins, Lucas, Thiago Bastos
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,11 +14,22 @@ from sklearn.preprocessing import StandardScaler
 
 
 @st.cache_data
-def load_raw_data(filepath: str) -> pd.DataFrame:
+def load_raw_data(filepath: str = "data/Health_LifeStyle-DS.csv") -> pd.DataFrame:
     """
     Carrega o dataset bruto de estilo de vida e saúde.
     Utiliza cache do Streamlit para otimizar tempo de carregamento.
+    Busca preferencialmente no caminho indicado com fallback para caminhos alternativos.
     """
+    if not os.path.exists(filepath):
+        # Fallback para diretório base do projeto
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alt_path = os.path.join(base_dir, "data", "Health_LifeStyle-DS.csv")
+        if os.path.exists(alt_path):
+            filepath = alt_path
+        elif os.path.exists("data/Health_LifeStyle-DS.csv"):
+            filepath = "data/Health_LifeStyle-DS.csv"
+        elif os.path.exists("Health_LifeStyle-DS.csv"):
+            filepath = "Health_LifeStyle-DS.csv"
     return pd.read_csv(filepath)
 
 
