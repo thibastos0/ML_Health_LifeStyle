@@ -32,7 +32,7 @@ from src.utils import (
 # 1. Configuração Global da Página
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="🩺 Oráculo Preditivo | Health Score",
+    page_title="Oráculo Preditivo | Health Score",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded",
