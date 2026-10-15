@@ -209,7 +209,7 @@ if menu == "📊 1. EDA & Higienização dos Dados":
         df_comparison = get_modified_rows_comparison(raw_df, clean_df)
         st.dataframe(
             df_comparison.head(15),
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
         )
         st.caption(f"Mostrando as primeiras 15 correções de um total de {len(df_comparison)} campos ajustados.")
@@ -226,7 +226,7 @@ if menu == "📊 1. EDA & Higienização dos Dados":
         """
     )
     fig_corr = plot_correlation_matrix(clean_df)
-    st.plotly_chart(fig_corr, use_container_width=True)
+    st.plotly_chart(fig_corr, width='stretch')
 
     st.markdown("---")
 
@@ -240,7 +240,7 @@ if menu == "📊 1. EDA & Higienização dos Dados":
     )
 
     fig_dist = plot_eda_distributions(clean_df, selected_var)
-    st.plotly_chart(fig_dist, use_container_width=True)
+    st.plotly_chart(fig_dist, width='stretch')
 
 
 # -----------------------------------------------------------------------------
@@ -257,7 +257,7 @@ elif menu == "📈 2. Comparativo de Performance dos Modelos":
     st.dataframe(
         metrics_df.style.highlight_max(subset=["R² (Teste)", "R² (CV 5-Fold)"], color="#C8E6C9")
         .highlight_min(subset=["MAE", "RMSE", "Tempo de Treino (s)"], color="#DCEDC8"),
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
     )
 
@@ -278,7 +278,7 @@ elif menu == "📈 2. Comparativo de Performance dos Modelos":
         "A linha tracejada vermelha representa a precisão perfeita (45°)."
     )
     fig_pred = plot_real_vs_predicted(y_test, predictions)
-    st.plotly_chart(fig_pred, use_container_width=True)
+    st.plotly_chart(fig_pred, width='stretch')
 
     st.markdown("---")
 
@@ -289,7 +289,7 @@ elif menu == "📈 2. Comparativo de Performance dos Modelos":
             A tabela abaixo compara o desempenho no conjunto de treino contra o conjunto de teste para identificar sobreajuste:
             """
         )
-        st.dataframe(overfitting_df, use_container_width=True, hide_index=True)
+        st.dataframe(overfitting_df, width='stretch', hide_index=True)
 
         st.markdown(
             """
@@ -322,7 +322,7 @@ elif menu == "🔍 3. Diagnóstico de Resíduos & Explicabilidade (XAI)":
 
     y_pred_sel = predictions[modelo_residuo]
     fig_res = plot_residuals_diagnostics(y_test, y_pred_sel, model_name=modelo_residuo)
-    st.plotly_chart(fig_res, use_container_width=True)
+    st.plotly_chart(fig_res, width='stretch')
 
     st.markdown(
         """
@@ -345,7 +345,7 @@ elif menu == "🔍 3. Diagnóstico de Resíduos & Explicabilidade (XAI)":
     )
 
     fig_imp = plot_feature_importance(feature_importance_df)
-    st.plotly_chart(fig_imp, use_container_width=True)
+    st.plotly_chart(fig_imp, width='stretch')
 
     col_xai1, col_xai2 = st.columns(2)
     with col_xai1:
@@ -403,7 +403,7 @@ elif menu == "🔮 4. Simulador Clínico Preditivo 🚀":
                 ],
             )
 
-        submitted = st.form_submit_button("🔮 Calcular Health Score Preditivo", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("🔮 Calcular Health Score Preditivo", type="primary", width='stretch')
 
     if submitted:
         patient_dict = {
@@ -803,7 +803,7 @@ elif menu == "🧪 Diagnóstico & Overfitting":
         }
     ).map(_style_alert_col, subset=["Alerta"])
 
-    st.dataframe(styled_comp, use_container_width=True, hide_index=True)
+    st.dataframe(styled_comp, width='stretch', hide_index=True)
 
     st.markdown("---")
 
@@ -833,7 +833,7 @@ elif menu == "🧪 Diagnóstico & Overfitting":
             model_name=diag_model_choice,
             relevance_indices=rv_indices,
         )
-        st.plotly_chart(fig_scatter_tt, use_container_width=True)
+        st.plotly_chart(fig_scatter_tt, width='stretch')
 
     with viz_tab2:
         st.markdown(
@@ -848,7 +848,7 @@ elif menu == "🧪 Diagnóstico & Overfitting":
             y_pred_test=diag_res["y_pred_test"],
             model_name=diag_model_choice,
         )
-        st.plotly_chart(fig_res_kde, use_container_width=True)
+        st.plotly_chart(fig_res_kde, width='stretch')
 
     with viz_tab3:
         st.markdown(
@@ -897,7 +897,7 @@ elif menu == "🧪 Diagnóstico & Overfitting":
             current_val_label=current_val_lbl,
             model_name=diag_model_choice,
         )
-        st.plotly_chart(fig_tuning, use_container_width=True)
+        st.plotly_chart(fig_tuning, width='stretch')
 
         with st.expander("🔎 Visualizar Tabela Numérica da Curva de Sintonia"):
             st.dataframe(
@@ -915,7 +915,7 @@ elif menu == "🧪 Diagnóstico & Overfitting":
                         "Gap (Treino - Teste)": "{:+.4f}",
                     }
                 ),
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
             )
 
