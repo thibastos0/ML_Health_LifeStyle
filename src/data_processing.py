@@ -33,6 +33,7 @@ def load_raw_data(filepath: str = "data/Health_LifeStyle-DS.csv") -> pd.DataFram
     return pd.read_csv(filepath)
 
 
+@st.cache_data
 def clean_data(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     """
     Realiza a higienização dos dados reais aplicando o método .clip() com base
@@ -113,6 +114,7 @@ def get_modified_rows_comparison(df_raw: pd.DataFrame, df_clean: pd.DataFrame) -
     return pd.DataFrame(comparativo)
 
 
+@st.cache_data
 def prepare_train_test_data(
     df_clean: pd.DataFrame,
     target_col: str = "Health_Score",

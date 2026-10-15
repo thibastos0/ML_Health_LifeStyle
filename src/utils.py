@@ -378,3 +378,411 @@ def plot_feature_importance(df_importance: pd.DataFrame) -> go.Figure:
     fig.update_xaxes(title_text="Impacto no Health Score (Desvios-Padrão)", row=1, col=2)
 
     return fig
+
+
+def plot_train_test_scatter(
+    y_train: pd.Series,
+    y_pred_train: np.ndarray,
+    y_test: pd.Series,
+    y_pred_test: np.ndarray,
+    model_name: str,
+    relevance_indices: np.ndarray | None = None,
+) -> go.Figure:
+    """
+    Gráfico de Dispersão Real vs. Predito: Subplots lado a lado para Treino e Teste
+    com a linha ideal de identidade (y = x) e destaque opcional para Vetores de Relevância (RVR).
+    """
+    y_tr = np.asarray(y_train, dtype=float)
+    y_te = np.asarray(y_test, dtype=float)
+    y_pr_tr = np.asarray(y_pred_train, dtype=float)
+    y_pr_te = np.asarray(y_pred_test, dtype=float)
+
+    err_tr = np.abs(y_tr - y_pr_tr)
+    err_te = np.abs(y_te - y_pr_te)
+
+    min_val = float(min(y_tr.min(), y_te.min(), y_pr_tr.min(), y_pr_te.min())) - 2.0
+    max_val = float(max(y_tr.max(), y_te.max(), y_pr_tr.max(), y_pr_te.max())) + 2.0
+
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=[
+            f"Conjunto de TREINO ({len(y_tr)} amostras) — {model_name}",
+            f"Conjunto de TESTE ({len(y_te)} amostras) — {model_name}",
+        ],
+        horizontal_spacing=0.10,
+    )
+
+    # Subplot 1: Treino
+    fig.add_trace(
+        go.Scatter(
+            x=y_tr,
+            y=y_pr_tr,
+            mode="markers",
+            name="Amostras de Treino",
+            marker=dict(
+                color="#1E88E5",
+                size=7,
+                opacity=0.65,
+                line=dict(width=0.5, color="white"),
+            ),
+            customdata=err_tr,
+            hovertemplate=(
+                "<b>Conjunto: Treino</b><br>"
+                "Real: %{x:.2f}<br>"
+                "Predito: %{y:.2f}<br>"
+                "Erro Absoluto: %{customdata:.2f} pts<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Destaque opcional para Vetores de Relevância (RVR) no conjunto de treino
+    if relevance_indices is not None and len(relevance_indices) > 0:
+        rv_idx = np.asarray(relevance_indices, dtype=int)
+        fig.add_trace(
+            go.Scatter(
+                x=y_tr[rv_idx],
+                y=y_pr_tr[rv_idx],
+                mode="markers",
+                name=f"Vetores de Relevância ({len(rv_idx)} RVs)",
+                marker=dict(
+                    symbol="diamond",
+                    color="#F59E0B",
+                    size=11,
+                    opacity=0.95,
+                    line=dict(width=1.5, color="#78350F"),
+                ),
+                customdata=err_tr[rv_idx],
+                hovertemplate=(
+                    "<b>⭐ Vetor de Relevância (RVR)</b><br>"
+                    "Real: %{x:.2f}<br>"
+                    "Predito: %{y:.2f}<br>"
+                    "Erro Absoluto: %{customdata:.2f} pts<extra></extra>"
+                ),
+            ),
+            row=1,
+            col=1,
+        )
+
+    # Linha Ideal y = x no Treino
+    fig.add_trace(
+        go.Scatter(
+            x=[min_val, max_val],
+            y=[min_val, max_val],
+            mode="lines",
+            name="Linha Ideal (y = x)",
+            line=dict(color="#D32F2F", width=2.5, dash="dash"),
+            hoverinfo="skip",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Subplot 2: Teste
+    fig.add_trace(
+        go.Scatter(
+            x=y_te,
+            y=y_pr_te,
+            mode="markers",
+            name="Amostras de Teste",
+            marker=dict(
+                color="#2E7D32",
+                size=7,
+                opacity=0.75,
+                line=dict(width=0.5, color="white"),
+            ),
+            customdata=err_te,
+            hovertemplate=(
+                "<b>Conjunto: Teste</b><br>"
+                "Real: %{x:.2f}<br>"
+                "Predito: %{y:.2f}<br>"
+                "Erro Absoluto: %{customdata:.2f} pts<extra></extra>"
+            ),
+        ),
+        row=1,
+        col=2,
+    )
+
+    # Linha Ideal y = x no Teste
+    fig.add_trace(
+        go.Scatter(
+            x=[min_val, max_val],
+            y=[min_val, max_val],
+            mode="lines",
+            name="Linha Ideal (y = x)",
+            line=dict(color="#D32F2F", width=2.5, dash="dash"),
+            showlegend=False,
+            hoverinfo="skip",
+        ),
+        row=1,
+        col=2,
+    )
+
+    fig.update_layout(
+        template="plotly_white",
+        height=470,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.08,
+            xanchor="center",
+            x=0.5,
+        ),
+        margin=dict(l=40, r=40, t=80, b=40),
+    )
+    fig.update_xaxes(title_text="Health Score Real (y)", range=[min_val, max_val], row=1, col=1)
+    fig.update_yaxes(title_text="Health Score Predito (ŷ)", range=[min_val, max_val], row=1, col=1)
+    fig.update_xaxes(title_text="Health Score Real (y)", range=[min_val, max_val], row=1, col=2)
+    fig.update_yaxes(title_text="Health Score Predito (ŷ)", range=[min_val, max_val], row=1, col=2)
+
+    return fig
+
+
+def plot_train_test_residuals_kde(
+    y_train: pd.Series,
+    y_pred_train: np.ndarray,
+    y_test: pd.Series,
+    y_pred_test: np.ndarray,
+    model_name: str,
+) -> go.Figure:
+    """
+    Gráfico de Resíduos: Histograma normalizado + Curva KDE (Kernel Density Estimation)
+    comparando a distribuição dos erros (y - ŷ) entre Treino e Teste, acompanhado de Violino/Boxplot.
+    """
+    from scipy.stats import gaussian_kde
+
+    res_train = np.asarray(y_train, dtype=float) - np.asarray(y_pred_train, dtype=float)
+    res_test = np.asarray(y_test, dtype=float) - np.asarray(y_pred_test, dtype=float)
+
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=[
+            f"Histograma & Densidade KDE dos Resíduos — {model_name}",
+            "Comparativo de Dispersão dos Erros (Treino vs. Teste)",
+        ],
+        horizontal_spacing=0.10,
+    )
+
+    # Histogramas sobrepostos (densidade de probabilidade)
+    fig.add_trace(
+        go.Histogram(
+            x=res_train,
+            histnorm="probability density",
+            nbinsx=30,
+            name="Histograma Treino",
+            marker=dict(color="#1E88E5", line=dict(color="white", width=0.8)),
+            opacity=0.40,
+            hovertemplate="Resíduo Treino: %{x:.2f}<br>Densidade: %{y:.4f}<extra></extra>",
+        ),
+        row=1,
+        col=1,
+    )
+
+    fig.add_trace(
+        go.Histogram(
+            x=res_test,
+            histnorm="probability density",
+            nbinsx=30,
+            name="Histograma Teste",
+            marker=dict(color="#2E7D32", line=dict(color="white", width=0.8)),
+            opacity=0.45,
+            hovertemplate="Resíduo Teste: %{x:.2f}<br>Densidade: %{y:.4f}<extra></extra>",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Curvas KDE contínuas para Treino e Teste
+    all_res = np.concatenate([res_train, res_test])
+    x_min, x_max = float(all_res.min()) - 2.0, float(all_res.max()) + 2.0
+    x_grid = np.linspace(x_min, x_max, 250)
+
+    if len(res_train) > 2 and np.std(res_train) > 1e-8:
+        kde_tr = gaussian_kde(res_train)(x_grid)
+        fig.add_trace(
+            go.Scatter(
+                x=x_grid,
+                y=kde_tr,
+                mode="lines",
+                name="Curva KDE Treino",
+                line=dict(color="#0D47A1", width=3),
+                hovertemplate="Erro: %{x:.2f}<br>KDE Treino: %{y:.4f}<extra></extra>",
+            ),
+            row=1,
+            col=1,
+        )
+
+    if len(res_test) > 2 and np.std(res_test) > 1e-8:
+        kde_te = gaussian_kde(res_test)(x_grid)
+        fig.add_trace(
+            go.Scatter(
+                x=x_grid,
+                y=kde_te,
+                mode="lines",
+                name="Curva KDE Teste",
+                line=dict(color="#1B5E20", width=3, dash="solid"),
+                hovertemplate="Erro: %{x:.2f}<br>KDE Teste: %{y:.4f}<extra></extra>",
+            ),
+            row=1,
+            col=1,
+        )
+
+    # Linha vertical em erro zero
+    fig.add_vline(
+        x=0,
+        line_dash="dash",
+        line_color="#D32F2F",
+        line_width=2,
+        annotation_text="Erro Zero",
+        annotation_position="top right",
+        row=1,
+        col=1,
+    )
+
+    # Subplot 2: Violino + Boxplot comparativo entre Treino e Teste
+    fig.add_trace(
+        go.Violin(
+            y=res_train,
+            name="Treino",
+            box_visible=True,
+            meanline_visible=True,
+            fillcolor="rgba(30, 136, 229, 0.45)",
+            line_color="#0D47A1",
+            points="outliers",
+        ),
+        row=1,
+        col=2,
+    )
+
+    fig.add_trace(
+        go.Violin(
+            y=res_test,
+            name="Teste",
+            box_visible=True,
+            meanline_visible=True,
+            fillcolor="rgba(46, 125, 50, 0.45)",
+            line_color="#1B5E20",
+            points="outliers",
+        ),
+        row=1,
+        col=2,
+    )
+
+    fig.add_hline(
+        y=0,
+        line_dash="dash",
+        line_color="#D32F2F",
+        line_width=1.8,
+        row=1,
+        col=2,
+    )
+
+    fig.update_layout(
+        template="plotly_white",
+        barmode="overlay",
+        height=460,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.08,
+            xanchor="center",
+            x=0.5,
+        ),
+        margin=dict(l=40, r=40, t=80, b=40),
+    )
+    fig.update_xaxes(title_text="Resíduo (Erro = y - ŷ)", row=1, col=1)
+    fig.update_yaxes(title_text="Densidade de Probabilidade", row=1, col=1)
+    fig.update_xaxes(title_text="Partição do Dataset", row=1, col=2)
+    fig.update_yaxes(title_text="Resíduo (Erro = y - ŷ)", row=1, col=2)
+
+    return fig
+
+
+def plot_hyperparameter_tuning_curve(
+    tuning_df: pd.DataFrame,
+    param_label: str,
+    current_val_label: str,
+    model_name: str,
+) -> go.Figure:
+    """
+    Curva de Sintonia (Validation Curve): Mostra o comportamento do R² no Treino e no Teste
+    e o Gap de Overfitting ao variar o hiperparâmetro selecionado.
+    """
+    fig = go.Figure()
+
+    x_vals = tuning_df["param_label"].astype(str).tolist()
+    r2_tr = tuning_df["R2_Treino"].tolist()
+    r2_te = tuning_df["R2_Teste"].tolist()
+    gaps = tuning_df["Gap_R2"].tolist()
+
+    # Curva de R² Treino
+    fig.add_trace(
+        go.Scatter(
+            x=x_vals,
+            y=r2_tr,
+            mode="lines+markers",
+            name="R² Treino",
+            line=dict(color="#1E88E5", width=3),
+            marker=dict(size=9, symbol="circle"),
+            customdata=gaps,
+            hovertemplate=(
+                f"<b>{param_label}: %{{x}}</b><br>"
+                "R² Treino: %{y:.4f}<br>"
+                "Gap (Treino - Teste): %{customdata:+.4f}<extra></extra>"
+            ),
+        )
+    )
+
+    # Curva de R² Teste (com preenchimento até a curva de treino para evidenciar o gap)
+    fig.add_trace(
+        go.Scatter(
+            x=x_vals,
+            y=r2_te,
+            mode="lines+markers",
+            name="R² Teste (Generalização)",
+            line=dict(color="#2E7D32", width=3),
+            marker=dict(size=9, symbol="diamond"),
+            fill="tonexty",
+            fillcolor="rgba(239, 68, 68, 0.12)",
+            customdata=gaps,
+            hovertemplate=(
+                f"<b>{param_label}: %{{x}}</b><br>"
+                "R² Teste: %{y:.4f}<br>"
+                "Gap (Treino - Teste): %{customdata:+.4f}<extra></extra>"
+            ),
+        )
+    )
+
+    # Destacar o valor atualmente selecionado pelo usuário caso esteja presente na grade
+    if current_val_label in x_vals:
+        idx = x_vals.index(current_val_label)
+        fig.add_vline(
+            x=idx,
+            line_dash="dot",
+            line_color="#F59E0B",
+            line_width=2.5,
+            annotation_text=f"Configuração Atual ({current_val_label})",
+            annotation_position="top left",
+        )
+
+    fig.update_layout(
+        title=f"Curva de Sintonia (Validation Curve): R² Treino vs. Teste ({model_name})",
+        template="plotly_white",
+        height=430,
+        xaxis_title=param_label,
+        yaxis_title="Coeficiente de Determinação (R²)",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.04,
+            xanchor="center",
+            x=0.5,
+        ),
+        margin=dict(l=40, r=40, t=75, b=40),
+    )
+
+    return fig
+

@@ -18,6 +18,8 @@ from src.data_processing import (
 from src.models import (
     train_and_evaluate_models,
     predict_single_patient,
+    train_diagnostic_model,
+    compute_tuning_curve,
 )
 from src.utils import (
     plot_eda_distributions,
@@ -25,6 +27,9 @@ from src.utils import (
     plot_real_vs_predicted,
     plot_residuals_diagnostics,
     plot_feature_importance,
+    plot_train_test_scatter,
+    plot_train_test_residuals_kde,
+    plot_hyperparameter_tuning_curve,
     FEATURE_TRANSLATION,
 )
 
@@ -142,6 +147,7 @@ menu = st.sidebar.radio(
         "📈 2. Comparativo de Performance dos Modelos",
         "🔍 3. Diagnóstico de Resíduos & Explicabilidade (XAI)",
         "🔮 4. Simulador Clínico Preditivo 🚀",
+        "🧪 Diagnóstico & Overfitting",
     ],
     index=0,
 )
@@ -516,7 +522,406 @@ elif menu == "🔮 4. Simulador Clínico Preditivo 🚀":
 
 
 # -----------------------------------------------------------------------------
-# 8. Seção Expander ao Fim de Todas as Páginas (Suporte para Arguição da Banca)
+# 8. Painel 5: Diagnóstico de Overfitting e Sintonia de Hiperparâmetros
+# -----------------------------------------------------------------------------
+elif menu == "🧪 Diagnóstico & Overfitting":
+    st.markdown(
+        '<div class="main-header">🧪 Diagnóstico de Overfitting & Sintonia de Hiperparâmetros</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="sub-header">Laboratório interativo para análise do Trade-off Viés-Variância, '
+        "poda estrutural de árvores (Random Forest) e esparsidade Bayesiana (Relevance Vector Regression - RVR).</div>",
+        unsafe_allow_html=True,
+    )
+
+    # 1. Painel de Controles Interativos (Seleção do Modelo, Split e Hiperparâmetros)
+    st.subheader("🎛️ 1. Configuração Experimental & Hiperparâmetros")
+
+    with st.container():
+        col_cfg1, col_cfg2 = st.columns([1.3, 1.0])
+        with col_cfg1:
+            diag_model_choice = st.radio(
+                "Selecione a Arquitetura do Modelo:",
+                options=["Random Forest", "RVR (Relevance Vector Regression)"],
+                horizontal=True,
+                help="alterne entre o ensemble de árvores (Random Forest) e o modelo esparso probabilístico (RVR).",
+            )
+        with col_cfg2:
+            test_size_pct = st.slider(
+                "Proporção do Conjunto de Teste (test_size):",
+                min_value=10,
+                max_value=40,
+                value=20,
+                step=5,
+                format="%d%%",
+                help="Define a fração de dados retida exclusivamente para validação fora da amostra (entre 10% e 40%).",
+            )
+            test_size_ratio = test_size_pct / 100.0
+
+    st.markdown("#### ⚙️ Sintonia Fina de Hiperparâmetros")
+
+    # Inicializar variáveis de hiperparâmetros com defaults seguros
+    rf_n_estimators = 100
+    rf_max_depth = None
+    rf_min_samples_split = 2
+    rf_min_samples_leaf = 1
+
+    rvr_kernel = "rbf"
+    rvr_gamma = 0.1
+    rvr_degree = 3
+    rvr_tol = 1e-3
+    rvr_max_iter = 300
+    rvr_threshold_alpha = 1e5
+
+    if diag_model_choice == "Random Forest":
+        c_rf1, c_rf2, c_rf3, c_rf4 = st.columns(4)
+        with c_rf1:
+            rf_n_estimators = st.slider(
+                "Nº de Árvores (n_estimators):",
+                min_value=10,
+                max_value=500,
+                value=100,
+                step=10,
+                help="Quantidade de árvores de decisão no comitê (ensemble).",
+            )
+        with c_rf2:
+            depth_options = ["None (Ilimitado)"] + [str(d) for d in range(2, 31)]
+            selected_depth_str = st.select_slider(
+                "Profundidade Máx. (max_depth):",
+                options=depth_options,
+                value="None (Ilimitado)",
+                help="Controla o crescimento vertical das árvores. 'None' permite ramificação até pureza total (maior risco de overfitting).",
+            )
+            rf_max_depth = None if selected_depth_str == "None (Ilimitado)" else int(selected_depth_str)
+        with c_rf3:
+            rf_min_samples_split = st.slider(
+                "Mín. Amostras p/ Divisão (min_samples_split):",
+                min_value=2,
+                max_value=30,
+                value=2,
+                step=1,
+                help="Número mínimo de amostras exigido para dividir um nó interno.",
+            )
+        with c_rf4:
+            rf_min_samples_leaf = st.slider(
+                "Mín. Amostras na Folha (min_samples_leaf):",
+                min_value=1,
+                max_value=25,
+                value=1,
+                step=1,
+                help="Número mínimo de amostras que todo nó folha terminal deve conter (regularização estrutural).",
+            )
+        model_type_key = "Random Forest"
+    else:
+        c_rvr1, c_rvr2, c_rvr3, c_rvr4 = st.columns(4)
+        with c_rvr1:
+            rvr_kernel = st.selectbox(
+                "Função de Kernel (kernel):",
+                options=["rbf", "linear", "poly"],
+                index=0,
+                help="Define a base de projeção dos Vetores de Relevância ('rbf' Gaussiano, 'linear' ou 'poly' Polinomial).",
+            )
+            if rvr_kernel == "poly":
+                rvr_degree = st.slider(
+                    "Grau do Polinômio (degree):",
+                    min_value=2,
+                    max_value=5,
+                    value=3,
+                    step=1,
+                )
+        with c_rvr2:
+            rvr_gamma = st.select_slider(
+                "Coeficiente de Kernel (gamma):",
+                options=[0.005, 0.01, 0.02, 0.05, 0.1, 0.15, 0.25, 0.5, 1.0, 2.0],
+                value=0.1,
+                disabled=(rvr_kernel == "linear"),
+                help="Controla o raio de influência de cada Vetor de Relevância. Valores altos criam funções muito sinuosas (risco de overfitting).",
+            )
+        with c_rvr3:
+            rvr_tol = st.select_slider(
+                "Tolerância de Convergência (tol):",
+                options=[1e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2],
+                value=1e-3,
+                format_func=lambda v: f"{v:.0e}" if v < 1e-3 else f"{v}",
+                help="Critério de parada para a variação máxima do logaritmo das precisões a priori (α).",
+            )
+        with c_rvr4:
+            rvr_max_iter = st.slider(
+                "Máx. Iterações EM (max_iter):",
+                min_value=50,
+                max_value=800,
+                value=300,
+                step=50,
+                help="Limite máximo de ciclos de atualização Bayesiana (MacKay / ARD).",
+            )
+        model_type_key = "RVR"
+
+    st.markdown("---")
+
+    # 2. Particionamento Dinâmico (Cacheado) e Avaliação Treino vs. Teste
+    (
+        X_tr_diag,
+        X_te_diag,
+        y_tr_diag,
+        y_te_diag,
+        X_tr_s_diag,
+        X_te_s_diag,
+        _,
+    ) = prepare_train_test_data(clean_df, test_size=test_size_ratio, random_state=42)
+
+    diag_res = train_diagnostic_model(
+        X_train_s=X_tr_s_diag,
+        y_train=y_tr_diag,
+        X_test_s=X_te_s_diag,
+        y_test=y_te_diag,
+        model_type=model_type_key,
+        n_estimators=rf_n_estimators,
+        max_depth=rf_max_depth,
+        min_samples_split=rf_min_samples_split,
+        min_samples_leaf=rf_min_samples_leaf,
+        kernel=rvr_kernel,
+        gamma=rvr_gamma,
+        degree=rvr_degree,
+        tol=rvr_tol,
+        max_iter=rvr_max_iter,
+        threshold_alpha=rvr_threshold_alpha,
+    )
+
+    tr_metrics = diag_res["train_metrics"]
+    te_metrics = diag_res["test_metrics"]
+    r2_diff = diag_res["r2_diff"]
+    is_overfitting = diag_res["is_overfitting"]
+    comp_df = diag_res["comparison_df"]
+    rv_info = diag_res["rv_info"]
+
+    # 3. Alerta Visual de Overfitting (Limiar: R² Treino - R² Teste > 0.15)
+    st.subheader("📊 2. Avaliação Comparativa: Treino vs. Teste")
+
+    if is_overfitting:
+        st.warning(
+            f"⚠️ **ALERTA DE OVERFITTING DETECTADO!** A diferença de **R² entre Treino ({tr_metrics['R²']:.4f}) e Teste ({te_metrics['R²']:.4f})** "
+            f"é de **{r2_diff:+.4f}** (superior ao limite crítico de **0.15**). "
+            "O modelo está memorizando ruídos da partição de treinamento e perdendo capacidade de generalização. "
+            "Sugestão: reduza `max_depth` / aumente `min_samples_leaf` (no Random Forest) ou reduza `gamma` (no RVR)."
+        )
+    else:
+        st.success(
+            f"✅ **GENERALIZAÇÃO SAUDÁVEL!** A diferença de **R² entre Treino ({tr_metrics['R²']:.4f}) e Teste ({te_metrics['R²']:.4f})** "
+            f"é de **{r2_diff:+.4f}** (dentro do limite seguro ≤ **0.15**). "
+            "O modelo apresenta equilíbrio adequado entre viés e variância."
+        )
+
+    # KPIs principais de Desempenho e Particionamento
+    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+    kpi1.metric(
+        "Amostras (Treino / Teste)",
+        f"{len(y_tr_diag)} / {len(y_te_diag)}",
+        f"Split: {100 - test_size_pct}% / {test_size_pct}%",
+        delta_color="off",
+    )
+    kpi2.metric(
+        "R² (Treino vs. Teste)",
+        f"{te_metrics['R²']:.4f}",
+        f"Treino: {tr_metrics['R²']:.4f} (Gap: {r2_diff:+.4f})",
+        delta_color="inverse" if is_overfitting else "normal",
+    )
+    kpi3.metric(
+        "RMSE (Teste)",
+        f"{te_metrics['RMSE']:.3f} pts",
+        f"Treino: {tr_metrics['RMSE']:.3f} pts",
+        delta_color="off",
+    )
+    kpi4.metric(
+        "MAE (Teste)",
+        f"{te_metrics['MAE']:.3f} pts",
+        f"Treino: {tr_metrics['MAE']:.3f} pts",
+        delta_color="off",
+    )
+    kpi5.metric(
+        "Tempo de Treino",
+        f"{diag_res['train_time']:.4f} s",
+        diag_model_choice.split(" ")[0],
+        delta_color="off",
+    )
+
+    # Destaque Exclusivo para RVR: Vetores de Relevância (Relevance Vectors)
+    if model_type_key == "RVR" and rv_info is not None:
+        st.markdown("#### 🎯 Esparsidade Bayesiana: Vetores de Relevância (Relevance Vectors)")
+        rv_col1, rv_col2, rv_col3, rv_col4 = st.columns(4)
+        n_rv = rv_info["n_relevance_vectors"]
+        n_tr_tot = rv_info["n_train_samples"]
+        rv_pct = rv_info["rv_percentage"]
+        sparsity_pct = rv_info["sparsity_percentage"]
+        conv_status = "Convergiu ✅" if rv_info["converged"] else "Limite Atingido ⚠️"
+
+        rv_col1.metric(
+            "Vetores de Relevância Retidos",
+            f"{n_rv} / {n_tr_tot}",
+            f"{rv_pct:.1f}% do conjunto de treino",
+            delta_color="off",
+        )
+        rv_col2.metric(
+            "Taxa de Compressão (Esparsidade)",
+            f"{sparsity_pct:.1f}%",
+            f"{n_tr_tot - n_rv} amostras podadas (α → ∞)",
+            delta_color="normal",
+        )
+        rv_col3.metric(
+            "Iterações EM / ARD",
+            f"{rv_info['n_iter']} ciclos",
+            conv_status,
+            delta_color="off",
+        )
+        rv_col4.metric(
+            "Precisão do Ruído Estimada (β)",
+            f"{rv_info['beta']:.4f}",
+            f"σ² ≈ {1.0 / max(rv_info['beta'], 1e-8):.2f}",
+            delta_color="off",
+        )
+        st.progress(
+            min(max(rv_pct / 100.0, 0.0), 1.0),
+            text=(
+                f"Proporção de Vetores de Relevância ativos: {n_rv} de {n_tr_tot} amostras de treino "
+                f"({rv_pct:.2f}% utilizados | {sparsity_pct:.2f}% descartados via Automatic Relevance Determination)."
+            ),
+        )
+
+    # Tabela Comparativa Obrigatória: Métrica | Treino | Teste | Diferença (Treino - Teste) | Alerta
+    st.markdown("#### 📋 Tabela Comparativa de Métricas (Treino vs. Teste)")
+
+    def _style_alert_col(val: str) -> str:
+        if "ALERTA" in str(val) or "Elevada" in str(val):
+            return "background-color: rgba(239, 68, 68, 0.18); color: #b91c1c; font-weight: 700;"
+        return "background-color: rgba(34, 197, 94, 0.15); color: #15803d; font-weight: 600;"
+
+    styled_comp = comp_df.style.format(
+        {
+            "Treino": "{:.4f}",
+            "Teste": "{:.4f}",
+            "Diferença (Treino - Teste)": "{:+.4f}",
+        }
+    ).map(_style_alert_col, subset=["Alerta"])
+
+    st.dataframe(styled_comp, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+
+    # 4. Visualizações Gráficas Interativas
+    st.subheader("📈 3. Diagnósticos Visuais de Generalização e Sintonia")
+
+    viz_tab1, viz_tab2, viz_tab3 = st.tabs(
+        [
+            "🎯 Dispersão Real vs. Predito (Treino vs. Teste)",
+            "📊 Distribuição de Resíduos (Histograma & KDE)",
+            "📈 Curva de Sintonia de Hiperparâmetros (R²)",
+        ]
+    )
+
+    with viz_tab1:
+        st.markdown(
+            "Comparação lado a lado da aderência das predições à **linha ideal ($y = x$)** nos conjuntos de "
+            "**Treino** e **Teste**. Quando há *overfitting*, os pontos de Treino colam perfeitamente na reta diagonal, "
+            "enquanto no Teste observa-se forte dispersão."
+        )
+        rv_indices = rv_info["relevance_indices"] if (model_type_key == "RVR" and rv_info is not None) else None
+        fig_scatter_tt = plot_train_test_scatter(
+            y_train=y_tr_diag,
+            y_pred_train=diag_res["y_pred_train"],
+            y_test=y_te_diag,
+            y_pred_test=diag_res["y_pred_test"],
+            model_name=diag_model_choice,
+            relevance_indices=rv_indices,
+        )
+        st.plotly_chart(fig_scatter_tt, use_container_width=True)
+
+    with viz_tab2:
+        st.markdown(
+            "Análise comparativa da **distribuição dos erros ($e = y - \\hat{y}$)** via Histograma de Densidade e "
+            "**Curva KDE (Kernel Density Estimation)**. Um pico excessivamente estreito e alto no Treino acompanhado "
+            "de uma cauda larga no Teste evidencia memorização."
+        )
+        fig_res_kde = plot_train_test_residuals_kde(
+            y_train=y_tr_diag,
+            y_pred_train=diag_res["y_pred_train"],
+            y_test=y_te_diag,
+            y_pred_test=diag_res["y_pred_test"],
+            model_name=diag_model_choice,
+        )
+        st.plotly_chart(fig_res_kde, use_container_width=True)
+
+    with viz_tab3:
+        st.markdown(
+            "A **Curva de Sintonia (Validation Curve)** ilustra como a complexidade do modelo afeta simultaneamente "
+            "o $R^2$ de Treino e o $R^2$ de Teste, permitindo identificar o ponto ótimo antes da abertura do gap de overfitting."
+        )
+        if model_type_key == "Random Forest":
+            tuning_param_name = "max_depth"
+            tuning_param_label = "Profundidade Máxima das Árvores (max_depth)"
+            current_val_lbl = "None (Ilimitado)" if rf_max_depth is None else str(rf_max_depth)
+        else:
+            rvr_curve_choice = st.radio(
+                "Parâmetro do RVR para Curva de Sintonia:",
+                options=["gamma (Largura do Kernel)", "tol (Tolerância de Convergência)"],
+                horizontal=True,
+            )
+            if rvr_curve_choice.startswith("gamma"):
+                tuning_param_name = "gamma"
+                tuning_param_label = "Parâmetro Gamma do Kernel (gamma)"
+                current_val_lbl = str(rvr_gamma)
+            else:
+                tuning_param_name = "tol"
+                tuning_param_label = "Tolerância de Convergência (tol)"
+                current_val_lbl = f"{rvr_tol:.0e}" if rvr_tol < 1e-3 else str(rvr_tol)
+
+        tuning_df = compute_tuning_curve(
+            X_train_s=X_tr_s_diag,
+            y_train=y_tr_diag,
+            X_test_s=X_te_s_diag,
+            y_test=y_te_diag,
+            model_type=model_type_key,
+            tuning_param=tuning_param_name,
+            n_estimators=rf_n_estimators,
+            min_samples_split=rf_min_samples_split,
+            min_samples_leaf=rf_min_samples_leaf,
+            kernel=rvr_kernel,
+            gamma=rvr_gamma,
+            degree=rvr_degree,
+            tol=rvr_tol,
+            max_iter=rvr_max_iter,
+        )
+
+        fig_tuning = plot_hyperparameter_tuning_curve(
+            tuning_df=tuning_df,
+            param_label=tuning_param_label,
+            current_val_label=current_val_lbl,
+            model_name=diag_model_choice,
+        )
+        st.plotly_chart(fig_tuning, use_container_width=True)
+
+        with st.expander("🔎 Visualizar Tabela Numérica da Curva de Sintonia"):
+            st.dataframe(
+                tuning_df.rename(
+                    columns={
+                        "param_label": tuning_param_label,
+                        "R2_Treino": "R² Treino",
+                        "R2_Teste": "R² Teste",
+                        "Gap_R2": "Gap (Treino - Teste)",
+                    }
+                ).style.format(
+                    {
+                        "R² Treino": "{:.4f}",
+                        "R² Teste": "{:.4f}",
+                        "Gap (Treino - Teste)": "{:+.4f}",
+                    }
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+
+# -----------------------------------------------------------------------------
+# 9. Seção Expander ao Fim de Todas as Páginas (Suporte para Arguição da Banca)
 # -----------------------------------------------------------------------------
 st.markdown("---")
 with st.expander("🎓 Suporte Teórico & Respostas para Arguição da Banca Avaliadora (Prof. Medina)", expanded=False):
